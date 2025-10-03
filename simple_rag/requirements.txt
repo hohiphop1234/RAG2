@@ -1,0 +1,26 @@
+# Core RAG Dependencies
+openai>=1.0.0
+sentence-transformers>=2.2.0
+chromadb>=0.4.0
+faiss-cpu>=1.7.0
+
+# Document Processing
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Web Interface
+streamlit>=1.28.0
+streamlit-chat>=0.1.1
+
+
+# Vietnamese Language Support
+unidecode>=1.3.0
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+tqdm>=4.65.0
+
