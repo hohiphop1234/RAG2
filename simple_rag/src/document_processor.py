@@ -7,7 +7,6 @@ It demonstrates the first step in RAG: preparing documents for embedding.
 
 import re
 import json
-import logging
 from typing import List, Dict, Any
 from pathlib import Path
 
@@ -203,6 +202,7 @@ class DocumentProcessor:
     def _semantic_chunking(self, content: str, document: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Chunk document by semantic boundaries (articles, sections)."""
         chunks = []
+        chunk_index = 0
         
         # Split by articles (Điều)
         articles = re.split(r'(Điều\s+\d+)', content)
@@ -215,8 +215,9 @@ class DocumentProcessor:
                 # Save previous chunk if it exists
                 if current_chunk.strip():
                     chunks.append(self._create_chunk(
-                        current_chunk, document, current_article
+                        current_chunk, document, current_article, chunk_index
                     ))
+                    chunk_index += 1
                 
                 current_article = part.strip()
                 current_chunk = part + " "
@@ -226,14 +227,15 @@ class DocumentProcessor:
                 # If chunk gets too large, split it
                 if len(current_chunk) > config.CHUNK_SIZE:
                     chunks.append(self._create_chunk(
-                        current_chunk, document, current_article
+                        current_chunk, document, current_article, chunk_index
                     ))
+                    chunk_index += 1
                     current_chunk = ""
         
         # Add remaining content
         if current_chunk.strip():
             chunks.append(self._create_chunk(
-                current_chunk, document, current_article
+                current_chunk, document, current_article, chunk_index
             ))
         
         return chunks
@@ -242,6 +244,7 @@ class DocumentProcessor:
         """Chunk document using fixed-size windows with overlap."""
         chunks = []
         start = 0
+        chunk_index = 0
         
         while start < len(content):
             end = start + config.CHUNK_SIZE
@@ -255,7 +258,8 @@ class DocumentProcessor:
             
             chunk_text = content[start:end].strip()
             if chunk_text:
-                chunks.append(self._create_chunk(chunk_text, document))
+                chunks.append(self._create_chunk(chunk_text, document, None, chunk_index))
+                chunk_index += 1
             
             # Move start position with overlap
             start = end - config.CHUNK_OVERLAP
@@ -265,7 +269,7 @@ class DocumentProcessor:
         return chunks
     
     def _create_chunk(self, text: str, document: Dict[str, Any], 
-                     article: str = None) -> Dict[str, Any]:
+                     article: str = None, chunk_index: int = 0) -> Dict[str, Any]:
         """Create a chunk dictionary with metadata."""
         return {
             'text': text,
@@ -276,7 +280,7 @@ class DocumentProcessor:
             'metadata': {
                 'file_type': document['file_type'],
                 'original_size': document['size'],
-                'chunk_index': len(text)  # This would be better tracked globally
+                'chunk_index': chunk_index
             }
         }
     

@@ -1,11 +1,9 @@
 
 
 import streamlit as st
-import logging
-from typing import Dict, Any, List
+from typing import Dict, List
 import time
 from pathlib import Path
-import json
 import sys
 import os
 import tempfile
@@ -157,8 +155,9 @@ def display_chat_message(message: str, is_user: bool = True,
         if sources:
             with st.expander("📚 Nguồn tham khảo"):
                 for i, source in enumerate(sources, 1):
+                    chunk_info = f" (Đoạn #{source['chunk_index']})" if 'chunk_index' in source else ""
                     st.markdown(f"""
-                    **{i}. {source['document']}**
+                    **{i}. {source['document']}{chunk_info}**
                     - Điểm tương đồng: {source['similarity_score']:.3f}
                     - Nội dung: {source['text_preview']}
                     """)
@@ -184,7 +183,10 @@ def show_document_list():
                     results['metadatas'] if results['metadatas'] else [{}] * len(results['ids']),
                     results['documents'] if results['documents'] else [''] * len(results['ids'])
                 )):
-                    doc_name = metadata.get('document', 'Unknown Document') if metadata else 'Unknown Document'
+                    # Prefer standardized key used by vector store
+                    doc_name = (metadata.get('source_document') or
+                                metadata.get('document') or
+                                'Unknown Document') if metadata else 'Unknown Document'
                     if doc_name not in doc_groups:
                         doc_groups[doc_name] = []
                     doc_groups[doc_name].append({
@@ -440,7 +442,7 @@ def main():
                     
                     for i, metadata in enumerate(results['metadatas'] if results['metadatas'] else []):
                         if metadata:
-                            # Try different metadata keys in order of preference
+                            # Prefer standardized key used by vector store
                             doc_name = (metadata.get('source_document') or 
                                       metadata.get('document') or 
                                       metadata.get('filename') or 

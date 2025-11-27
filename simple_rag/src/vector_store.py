@@ -5,17 +5,13 @@ This module handles storing and searching through document embeddings.
 It demonstrates the third step in RAG: vector similarity search.
 """
 
-import logging
-import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 from pathlib import Path
-import json
 import pickle
 
-# Vector database libraries
+# Vector database libraries (Chroma only)
 import chromadb
 from chromadb.config import Settings
-import faiss
 
 from config import config
 from logging_config import get_logger
@@ -50,13 +46,10 @@ class VectorStore:
         self._initialize_database()
     
     def _initialize_database(self):
-        """Initialize the vector database based on type."""
-        if self.db_type == "chromadb":
-            self._initialize_chromadb()
-        elif self.db_type == "faiss":
-            self._initialize_faiss()
-        else:
-            raise ValueError(f"Unsupported database type: {self.db_type}")
+        """Initialize the vector database (Chroma-only)."""
+        if self.db_type != "chromadb":
+            raise NotImplementedError("Chroma-only build: set VECTOR_DB_TYPE='chromadb' in config.py")
+        self._initialize_chromadb()
     
     def _initialize_chromadb(self):
         """Initialize ChromaDB."""
@@ -83,23 +76,8 @@ class VectorStore:
             raise
     
     def _initialize_faiss(self):
-        """Initialize FAISS index."""
-        try:
-            self.index_file = Path(config.MODELS_DIR) / f"faiss_index_{self.collection_name}.index"
-            self.metadata_file = Path(config.MODELS_DIR) / f"faiss_metadata_{self.collection_name}.pkl"
-            
-            # Load existing index if it exists
-            if self.index_file.exists() and self.metadata_file.exists():
-                self.index = faiss.read_index(str(self.index_file))
-                with open(self.metadata_file, 'rb') as f:
-                    self.metadata = pickle.load(f)
-                logger.info(f"Loaded existing FAISS index with {self.index.ntotal} vectors")
-            else:
-                logger.info("No existing FAISS index found, will create new one")
-                
-        except Exception as e:
-            logger.error(f"Error initializing FAISS: {str(e)}")
-            raise
+        """FAISS is disabled for Chroma-only configuration."""
+        raise NotImplementedError("FAISS support is disabled. Set VECTOR_DB_TYPE='chromadb'.")
     
     def add_documents(self, embedded_chunks: List[Dict[str, Any]]) -> bool:
         """
@@ -116,10 +94,7 @@ class VectorStore:
             return False
         
         try:
-            if self.db_type == "chromadb":
-                return self._add_to_chromadb(embedded_chunks)
-            else:
-                return self._add_to_faiss(embedded_chunks)
+            return self._add_to_chromadb(embedded_chunks)
         except Exception as e:
             logger.error(f"Error adding documents to vector store: {str(e)}")
             return False
@@ -134,7 +109,16 @@ class VectorStore:
             metadatas = []
             
             for i, chunk in enumerate(embedded_chunks):
-                ids.append(f"chunk_{i}")
+                # Build stable, unique ID using document name and chunk index if available
+                doc_name = (chunk.get('source_document') or
+                            chunk.get('metadata', {}).get('source_document') or 'unknown')
+                chunk_idx = (chunk.get('metadata', {}).get('chunk_index')
+                             if isinstance(chunk.get('metadata'), dict) else None)
+                if chunk_idx is not None:
+                    unique_id = f"{doc_name}__{chunk_idx}"
+                else:
+                    unique_id = f"{doc_name}__{i}"
+                ids.append(unique_id)
                 embeddings.append(chunk['embedding'])
                 documents.append(chunk['text'])
                 
@@ -144,6 +128,7 @@ class VectorStore:
                     'source_document': chunk_metadata.get('source_document', chunk.get('source_document', 'unknown')),
                     'source_filepath': chunk_metadata.get('source_filepath', chunk.get('source_filepath', 'unknown')),
                     'chunk_size': chunk_metadata.get('chunk_size', chunk.get('chunk_size', len(chunk['text']))),
+                    'chunk_index': chunk_metadata.get('chunk_index'),
                     'embedding_model': chunk.get('embedding_model', 'unknown')
                 }
                 
@@ -173,44 +158,8 @@ class VectorStore:
             return False
     
     def _add_to_faiss(self, embedded_chunks: List[Dict[str, Any]]) -> bool:
-        """Add documents to FAISS index."""
-        try:
-            # Extract embeddings
-            embeddings = np.array([chunk['embedding'] for chunk in embedded_chunks], dtype=np.float32)
-            
-            # Create index if it doesn't exist
-            if self.index is None:
-                dimension = len(embedded_chunks[0]['embedding'])
-                self.index = faiss.IndexFlatIP(dimension)  # Inner product (cosine similarity)
-                logger.info(f"Created new FAISS index with dimension {dimension}")
-            
-            # Add embeddings to index
-            self.index.add(embeddings)
-            
-            # Store metadata
-            for chunk in embedded_chunks:
-                metadata = {
-                    'text': chunk['text'],
-                    'source_document': chunk['source_document'],
-                    'source_filepath': chunk['source_filepath'],
-                    'chunk_size': chunk['chunk_size'],
-                    'embedding_model': chunk.get('embedding_model', 'unknown')
-                }
-                
-                if 'article' in chunk and chunk['article']:
-                    metadata['article'] = chunk['article']
-                
-                self.metadata.append(metadata)
-            
-            # Save index and metadata
-            self._save_faiss_index()
-            
-            logger.info(f"Added {len(embedded_chunks)} documents to FAISS index")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error adding to FAISS: {str(e)}")
-            return False
+        """FAISS is disabled for Chroma-only configuration."""
+        raise NotImplementedError("FAISS support is disabled. Set VECTOR_DB_TYPE='chromadb'.")
     
     def similarity_search(self, query_embedding: List[float], 
                          top_k: int = None) -> List[Dict[str, Any]]:
@@ -227,10 +176,7 @@ class VectorStore:
         top_k = top_k or config.TOP_K_RESULTS
         
         try:
-            if self.db_type == "chromadb":
-                return self._search_chromadb(query_embedding, top_k)
-            else:
-                return self._search_faiss(query_embedding, top_k)
+            return self._search_chromadb(query_embedding, top_k)
         except Exception as e:
             logger.error(f"Error in similarity search: {str(e)}")
             return []
@@ -260,47 +206,12 @@ class VectorStore:
             return []
     
     def _search_faiss(self, query_embedding: List[float], top_k: int) -> List[Dict[str, Any]]:
-        """Search using FAISS."""
-        try:
-            if self.index is None or self.index.ntotal == 0:
-                logger.warning("FAISS index is empty")
-                return []
-            
-            # Convert query to numpy array
-            query_vector = np.array([query_embedding], dtype=np.float32)
-            
-            # Search
-            scores, indices = self.index.search(query_vector, top_k)
-            
-            # Format results
-            formatted_results = []
-            for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
-                if idx < len(self.metadata):
-                    result = {
-                        'text': self.metadata[idx]['text'],
-                        'score': float(score),
-                        'metadata': self.metadata[idx]
-                    }
-                    formatted_results.append(result)
-            
-            return formatted_results
-            
-        except Exception as e:
-            logger.error(f"Error searching FAISS: {str(e)}")
-            return []
+        """FAISS is disabled for Chroma-only configuration."""
+        raise NotImplementedError("FAISS support is disabled. Set VECTOR_DB_TYPE='chromadb'.")
     
     def _save_faiss_index(self):
-        """Save FAISS index and metadata to disk."""
-        try:
-            if self.index is not None:
-                faiss.write_index(self.index, str(self.index_file))
-            
-            with open(self.metadata_file, 'wb') as f:
-                pickle.dump(self.metadata, f)
-                
-            logger.info(f"Saved FAISS index and metadata")
-        except Exception as e:
-            logger.error(f"Error saving FAISS index: {str(e)}")
+        """FAISS is disabled for Chroma-only configuration."""
+        logger.warning("_save_faiss_index called but FAISS is disabled.")
     
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the vector store."""
@@ -316,7 +227,7 @@ class VectorStore:
             except:
                 stats['document_count'] = 0
         else:
-            stats['document_count'] = self.index.ntotal if self.index else 0
+            stats['document_count'] = 0
         
         return stats
     
@@ -332,14 +243,8 @@ class VectorStore:
                 )
                 logger.info("Cleared ChromaDB collection")
             else:
-                # Clear FAISS index
-                self.index = None
-                self.metadata = []
-                if self.index_file.exists():
-                    self.index_file.unlink()
-                if self.metadata_file.exists():
-                    self.metadata_file.unlink()
-                logger.info("Cleared FAISS index")
+                # FAISS disabled; nothing to clear
+                logger.info("FAISS is disabled; nothing to clear")
         except Exception as e:
             logger.error(f"Error clearing database: {str(e)}")
 

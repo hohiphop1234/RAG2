@@ -23,7 +23,7 @@ class RAGConfig:
     BATCH_SIZE: int = 100  # Batch size for embedding generation
     
     # Vector Database
-    VECTOR_DB_TYPE: str = "chromadb"  # "chromadb" or "faiss"
+    VECTOR_DB_TYPE: str = "chromadb"  # Chroma-only build
     COLLECTION_NAME: str = "vietnamese_law_documents"
     SIMILARITY_THRESHOLD: float = 0.3  # Minimum similarity score (lowered for better retrieval)
     TOP_K_RESULTS: int = 5  # Number of relevant chunks to retrieve

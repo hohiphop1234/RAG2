@@ -1,323 +1,329 @@
-# 🇻🇳 Simple RAG - Hệ thống Chatbot Pháp luật Việt Nam
+# 🇻🇳 Simple RAG System - Vietnamese Law Chatbot
 
-> **Hệ thống RAG (Retrieval-Augmented Generation) hoàn toàn local cho tài liệu pháp luật Việt Nam**
+A complete Retrieval-Augmented Generation (RAG) system for Vietnamese legal documents, supporting both local (Ollama) and cloud (OpenAI) operation.
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)
-[![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-green)](https://ollama.ai)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Web%20UI-red)](https://streamlit.io)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+## 📖 Overview
 
-## 🎯 Giới thiệu
+This RAG system allows you to:
+- 📄 Upload Vietnamese legal documents (PDF, DOCX, TXT)
+- 🔍 Ask questions in natural Vietnamese language
+- 💬 Get accurate answers with source citations
+- 🔒 Run completely offline (with Ollama) or use OpenAI
 
-Simple RAG là một hệ thống chatbot thông minh được thiết kế đặc biệt cho việc tra cứu và tư vấn pháp luật Việt Nam. Hệ thống sử dụng công nghệ RAG (Retrieval-Augmented Generation) để trả lời câu hỏi dựa trên tài liệu pháp luật có sẵn.
+## ✨ Key Features
 
-### ✨ Tính năng nổi bật
+- **Flexible Deployment**: Choose between local (Ollama) or cloud (OpenAI) models
+- **Smart Document Processing**: Automatic chunking with semantic boundaries
+- **Multi-format Support**: PDF, DOCX, TXT, HTML documents
+- **Vector Search**: ChromaDB or FAISS for fast retrieval
+- **Web Interface**: User-friendly Streamlit UI
+- **Source Tracking**: All answers include document references
+- **Vietnamese Optimized**: Specialized for Vietnamese legal text
 
-- 🏠 **Hoàn toàn Local**: Không cần internet, không có chi phí API
-- 🔒 **Bảo mật tuyệt đối**: Dữ liệu không rời khỏi máy tính của bạn
-- 🇻🇳 **Tối ưu tiếng Việt**: Sử dụng mô hình AI chuyên biệt cho tiếng Việt
-- 📚 **Đa định dạng**: Hỗ trợ PDF, DOCX, TXT
-- 🌐 **Giao diện web**: Dễ sử dụng với Streamlit
-- ⚡ **Hiệu suất cao**: Xử lý nhanh với ChromaDB
+## 🏗️ Architecture
 
-## 🚀 Bắt đầu nhanh
+```
+User Question
+    ↓
+[Document Processing] → Text chunking with overlap
+    ↓
+[Embedding] → Convert text to vectors (Ollama/OpenAI)
+    ↓
+[Vector Store] → Store in ChromaDB/FAISS
+    ↓
+[Retrieval] → Find relevant document chunks
+    ↓
+[Generation] → Generate answer with LLM (Ollama/OpenAI)
+    ↓
+Answer + Sources
+```
 
-### Yêu cầu hệ thống
-- **Python**: 3.8 - 3.13
-- **RAM**: 8GB+ (khuyến nghị 16GB)
-- **Ổ cứng**: 10GB+ trống
-- **Ollama**: Để chạy mô hình AI local
+## 📁 Project Structure
 
-### Cài đặt nhanh
+```
+simple_rag/
+├── config.py                 # Centralized configuration
+├── logging_config.py         # Logging setup
+├── main.py                   # Main entry point
+├── requirements.txt          # Python dependencies
+├── run_web.bat              # Windows launcher
+├── run_web.ps1              # PowerShell launcher
+├── data/
+│   ├── raw/                 # Put your documents here
+│   └── processed/           # Auto-generated processed docs
+├── models/
+│   └── chromadb/            # Vector database storage
+├── src/
+│   ├── document_processor.py  # Load & chunk documents
+│   ├── embeddings.py          # Generate embeddings
+│   ├── vector_store.py        # Vector database management
+│   ├── llm_client.py          # LLM provider abstraction
+│   ├── rag_pipeline.py        # Core RAG logic
+│   └── web_interface.py       # Streamlit UI
+└── temp_uploads/            # Temporary file storage
+```
 
-1. **Cài đặt Ollama và tải mô hình**:
+## 🚀 Quick Start
+
+### Option 1: Local Setup (Recommended)
+
+**Advantages**: Free, private, no API costs
+
+1. **Install Ollama** from [ollama.ai](https://ollama.ai/)
+
+2. **Pull required models**:
    ```bash
-   # Tải Ollama từ https://ollama.ai
-   ollama pull deepseek-r1         # Mô hình ngôn ngữ tiếng Việt
-   ollama pull mxbai-embed-large   # Mô hình embedding
+   ollama pull deepseek-r1           # Language model
+   ollama pull mxbai-embed-large     # Embedding model
    ```
 
-2. **Cài đặt Python dependencies**:
+3. **Install Python dependencies**:
    ```bash
-   git clone <repository-url>
-   cd simple_rag
    pip install -r requirements.txt
    ```
 
-3. **Kiểm tra hệ thống**:
-   ```bash
-   python test_complete_local_rag.py
-   # Kết quả: Final result: PASS ✅
-   ```
-
-4. **Chạy giao diện web**:
+4. **Run the web interface**:
    ```bash
    streamlit run src/web_interface.py
    ```
 
-Truy cập: http://localhost:8501
+5. **Open browser**: http://localhost:8501
 
-> 📖 **Chi tiết cài đặt**: Xem [SETUP.md](SETUP.md) để có hướng dẫn đầy đủ
+### Option 2: OpenAI Setup
 
-## 🏗️ Kiến trúc hệ thống
+**Advantages**: Faster, more powerful models
 
-```mermaid
-graph TD
-    A[Tài liệu pháp luật] --> B[Document Processor]
-    B --> C[Text Chunking]
-    C --> D[Embedding Generator]
-    D --> E[Vector Store - ChromaDB]
-    
-    F[Câu hỏi người dùng] --> G[Query Processing]
-    G --> H[Vector Search]
-    E --> H
-    H --> I[Relevant Documents]
-    I --> J[LLM - DeepSeek-R1]
-    J --> K[Câu trả lời]
-```
+1. **Get OpenAI API key** from [platform.openai.com](https://platform.openai.com)
 
-### Các thành phần chính
+2. **Create `.env` file**:
+   ```bash
+   OPENAI_API_KEY=your_api_key_here
+   ```
 
-| Thành phần | Mô tả | Công nghệ |
-|------------|-------|-----------|
-| **Document Processor** | Xử lý và chia nhỏ tài liệu | PyPDF2, python-docx |
-| **Embedding Generator** | Tạo vector embedding | Ollama (mxbai-embed-large) |
-| **Vector Store** | Lưu trữ và tìm kiếm vector | ChromaDB |
-| **LLM Client** | Tạo câu trả lời | Ollama (deepseek-r1) |
-| **Web Interface** | Giao diện người dùng | Streamlit |
+3. **Update `config.py`**:
+   ```python
+   LLM_PROVIDER = "openai"
+   EMBEDDING_PROVIDER = "openai"
+   LLM_MODEL = "gpt-4"
+   EMBEDDING_MODEL = "text-embedding-3-small"
+   ```
 
-## 📁 Cấu trúc dự án
+4. **Install and run**:
+   ```bash
+   pip install -r requirements.txt
+   streamlit run src/web_interface.py
+   ```
 
-```
-simple_rag/
-├── 📄 README.md                    # Tài liệu chính
-├── 📄 SETUP.md                     # Hướng dẫn cài đặt chi tiết
-├── 📄 requirements.txt             # Dependencies Python
-├── ⚙️ config.py                    # Cấu hình hệ thống
-├── 🧪 test_complete_local_rag.py   # Test hệ thống hoàn chỉnh
-├── 🧪 test_local_embeddings.py     # Test embedding
-├── 📂 src/                         # Source code
-│   ├── 📄 document_processor.py    # Xử lý tài liệu
-│   ├── 📄 embeddings.py           # Tạo embedding
-│   ├── 📄 vector_store.py         # Quản lý vector database
-│   ├── 📄 rag_pipeline.py         # Logic RAG chính
-│   ├── 📄 llm_client.py           # Client LLM
-│   └── 📄 web_interface.py        # Giao diện web
-├── 📂 data/                        # Dữ liệu
-│   ├── 📂 raw/                     # Tài liệu gốc
-│   └── 📂 processed/               # Tài liệu đã xử lý
-└── 📂 models/                      # Mô hình và vector database
-    └── 📂 chromadb/                # ChromaDB storage
-```
+## 📚 Usage
 
-## 🎮 Cách sử dụng
+### Web Interface
 
-### 1. Thêm tài liệu
+1. **Upload Documents**:
+   - Click "📁 Quản lý tài liệu" in sidebar
+   - Select PDF/DOCX/TXT files
+   - Click "🔄 Xử lý tài liệu"
 
-Đặt các file tài liệu pháp luật vào thư mục `data/raw/`:
+2. **Ask Questions**:
+   - Type your question in Vietnamese
+   - Click "📤 Gửi"
+   - View answer with confidence score and sources
+
+3. **Try Examples**:
+   - Click any example question button
+   - See how the system works
+
+### Command Line
 
 ```bash
-# Ví dụ
-cp luat_giao_thong_duong_bo.pdf data/raw/
-cp luat_dat_dai_2023.docx data/raw/
-cp quy_dinh_ve_phat_giao_thong.txt data/raw/
-```
-
-### 2. Sử dụng giao diện web
-
-```bash
-streamlit run src/web_interface.py
-```
-
-**Tính năng giao diện**:
-- 💬 Chat trực tiếp với AI
-- 📊 Hiển thị độ tin cậy của câu trả lời
-- 📄 Xem tài liệu nguồn được sử dụng
-- 🔄 Tải lại tài liệu mới
-
-### 3. Sử dụng từ command line
-
-```bash
-# Setup hệ thống từ đầu
+# Setup the RAG system (process documents)
 python main.py setup
 
-# Test hệ thống
-python main.py test
-
-# Chạy web interface
+# Run web interface
 python main.py web
 ```
 
-### 4. Ví dụ câu hỏi
+### Windows Users
 
-**Luật giao thông**:
-- "Tốc độ tối đa của xe máy trong khu vực đông dân cư là bao nhiêu?"
-- "Điều kiện để được cấp giấy phép lái xe hạng A1?"
-- "Mức phạt cho vi phạm vượt đèn đỏ?"
+Double-click `run_web.bat` or run `run_web.ps1` in PowerShell.
 
-**Luật đất đai**:
-- "Quyền sử dụng đất có thời hạn là bao lâu?"
-- "Điều kiện chuyển nhượng quyền sử dụng đất?"
-- "Thủ tục cấp giấy chứng nhận quyền sử dụng đất?"
+## ⚙️ Configuration
 
-## ⚙️ Cấu hình
+Edit `config.py` to customize behavior:
 
-### Cấu hình cơ bản
-
+### Document Processing
 ```python
-# config.py
-LLM_PROVIDER = "ollama"              # Sử dụng Ollama local
-EMBEDDING_PROVIDER = "ollama"        # Embedding local
-LLM_MODEL = "deepseek-r1"            # Mô hình tiếng Việt
-EMBEDDING_MODEL = "mxbai-embed-large" # Mô hình embedding
+CHUNK_SIZE = 1000              # Text chunk size (characters)
+CHUNK_OVERLAP = 200            # Overlap between chunks
+MAX_CHUNKS_PER_DOCUMENT = 50   # Limit per document
 ```
 
-### Cấu hình nâng cao
-
+### Embedding Settings
 ```python
-# Điều chỉnh hiệu suất
-CHUNK_SIZE = 1000                    # Kích thước đoạn văn bản
-SIMILARITY_THRESHOLD = 0.3           # Ngưỡng tương đồng
-TOP_K_RESULTS = 5                    # Số kết quả trả về
-TEMPERATURE = 0.7                    # Độ sáng tạo AI
-
-# Đường dẫn
-DATA_DIR = "data"
-RAW_DOCS_DIR = "data/raw"
-PROCESSED_DOCS_DIR = "data/processed"
+EMBEDDING_PROVIDER = "ollama"          # "ollama" or "openai"
+EMBEDDING_MODEL = "mxbai-embed-large"  # Model name
+EMBEDDING_DIMENSION = 1024             # Vector dimension
 ```
 
-### Sử dụng OpenAI (tùy chọn)
-
+### Vector Database
 ```python
-# config.py
-LLM_PROVIDER = "openai"
-EMBEDDING_PROVIDER = "openai"
-
-# .env
-OPENAI_API_KEY=your_api_key_here
+VECTOR_DB_TYPE = "chromadb"       # "chromadb" or "faiss"
+SIMILARITY_THRESHOLD = 0.3        # Min similarity (0-1)
+TOP_K_RESULTS = 5                 # Results to retrieve
 ```
+
+### LLM Settings
+```python
+LLM_PROVIDER = "ollama"           # "ollama" or "openai"
+LLM_MODEL = "deepseek-r1"         # Model name
+MAX_TOKENS = 1000                 # Response length
+TEMPERATURE = 0.7                 # Creativity (0-1)
+```
+
+## 🎯 Example Questions
+
+- "Luật giao thông đường bộ quy định gì về tốc độ xe máy?"
+- "Điều kiện để được cấp giấy phép lái xe là gì?"
+- "Quy định về xử phạt vi phạm giao thông như thế nào?"
+- "Luật đất đai quy định gì về quyền sử dụng đất?"
+
+## 🔧 System Requirements
+
+### Minimum (Ollama)
+- **RAM**: 8GB (16GB recommended)
+- **Storage**: 10GB free space
+- **CPU**: 64-bit Intel/AMD
+- **Python**: 3.8 - 3.13
+
+### Minimum (OpenAI)
+- **RAM**: 4GB
+- **Storage**: 2GB free space
+- **Python**: 3.8 - 3.13
+- **Internet**: Required for API calls
+
+## 📊 Performance
+
+### Local (Ollama)
+- Initial model load: ~10-15 seconds
+- Document embedding: ~1-2 seconds per document
+- Query response: ~3-5 seconds
+
+### OpenAI
+- Document embedding: ~0.5-1 second per document
+- Query response: ~1-2 seconds
+
+## 🐛 Troubleshooting
+
+### Ollama Issues
+
+**"Connection refused"**
+```bash
+# Check if Ollama is running
+ollama list
+
+# Restart Ollama service
+```
+
+**"Model not found"**
+```bash
+# Re-pull the models
+ollama pull deepseek-r1
+ollama pull mxbai-embed-large
+```
+
+### OpenAI Issues
+
+**"Invalid API key"**
+- Check your `.env` file
+- Verify key at platform.openai.com
+- Restart the application
+
+### Memory Issues
+
+**"Out of memory"**
+- Reduce `CHUNK_SIZE` in config.py
+- Use fewer documents
+- Switch to smaller model (Ollama: `llama3.2`)
+
+### Unicode Issues
+
+**Text encoding errors**
+- Use Python 3.8-3.13 (avoid 3.14 alpha)
+- Ensure files are UTF-8 encoded
 
 ## 🧪 Testing
 
-### Test tự động
+Run tests to verify installation:
 
 ```bash
-# Test hệ thống hoàn chỉnh
+# Test complete system
 python test_complete_local_rag.py
 
-# Test embedding
+# Test embeddings only
 python test_local_embeddings.py
-
-# Test với Ollama
-python test_ollama_rag.py
 ```
 
-### Test thủ công
+Expected output: `PASS ✅`
 
-1. **Kiểm tra Ollama**:
-   ```bash
-   ollama list
-   curl http://localhost:11434/api/tags
-   ```
+## 📦 Dependencies
 
-2. **Kiểm tra Python packages**:
-   ```bash
-   pip list | grep -E "(openai|chromadb|streamlit)"
-   ```
+Key libraries:
+- `streamlit` - Web interface
+- `chromadb` - Vector database
+- `ollama` - Local LLM client
+- `openai` - OpenAI API client
+- `sentence-transformers` - Alternative embeddings
+- `PyPDF2` - PDF processing
+- `python-docx` - DOCX processing
+- `beautifulsoup4` - HTML processing
 
-## 📊 Hiệu suất
+See `requirements.txt` for complete list.
 
-### Thời gian xử lý
-- **Embedding**: ~1-2 giây/tài liệu
-- **Truy vấn**: ~3-5 giây
-- **Khởi động**: ~10-15 giây (lần đầu)
+## 🔐 Privacy & Security
 
-### Sử dụng tài nguyên
-- **RAM**: 4-6GB khi chạy
-- **Ổ cứng**: ~6GB (mô hình + database)
-- **CPU**: Đa lõi
+### Local Mode (Ollama)
+- ✅ All data stays on your machine
+- ✅ No internet required after setup
+- ✅ No API costs
+- ✅ Complete privacy
 
-### Độ chính xác
-- **Retrieval**: 85-90% (tùy thuộc vào chất lượng tài liệu)
-- **Generation**: 80-85% (tùy thuộc vào độ phức tạp câu hỏi)
+### OpenAI Mode
+- ⚠️ Data sent to OpenAI servers
+- ⚠️ Requires internet connection
+- ⚠️ API costs apply
+- ℹ️ Subject to OpenAI's privacy policy
 
-## 🔧 Troubleshooting
+## 🤝 Contributing
 
-### Lỗi thường gặp
+Contributions welcome! Areas for improvement:
+- Add more document formats
+- Implement re-ranking
+- Add query rewriting
+- Support more languages
+- Add conversation memory
+- Implement caching
 
-| Lỗi | Nguyên nhân | Giải pháp |
-|-----|-------------|-----------|
-| `Connection refused` | Ollama không chạy | `ollama serve` |
-| `Model not found` | Mô hình chưa tải | `ollama pull deepseek-r1` |
-| `Out of memory` | RAM không đủ | Đóng app khác, giảm CHUNK_SIZE |
-| `Unicode error` | Python version | Sử dụng Python 3.8-3.13 |
+## 📝 License
 
-### Debug
+[Specify your license here]
 
-```bash
-# Kiểm tra log chi tiết
-python test_complete_local_rag.py --verbose
+## 🆘 Support
 
-# Kiểm tra trạng thái Ollama
-ollama ps
-
-# Kiểm tra ChromaDB
-ls -la models/chromadb/
-```
-
-## 🚀 Roadmap
-
-### Phiên bản hiện tại (v1.0)
-- ✅ RAG hoàn toàn local
-- ✅ Hỗ trợ tiếng Việt
-- ✅ Giao diện web Streamlit
-- ✅ Đa định dạng tài liệu
-
-### Phiên bản tương lai
-- 🔄 Hỗ trợ thêm định dạng (HTML, Markdown)
-- 🔄 Tích hợp OCR cho PDF scan
-- 🔄 API REST cho tích hợp
-- 🔄 Dashboard quản lý tài liệu
-- 🔄 Hỗ trợ đa ngôn ngữ
-
-## 🤝 Đóng góp
-
-Chúng tôi hoan nghênh mọi đóng góp! Cách đóng góp:
-
-1. **Fork** repository
-2. **Tạo branch** cho feature mới
-3. **Commit** thay đổi
-4. **Push** lên branch
-5. **Tạo Pull Request**
-
-### Các lĩnh vực cần đóng góp
-- 🐛 Bug fixes
-- ✨ Tính năng mới
-- 📚 Cải thiện tài liệu
-- 🧪 Test cases
-- 🌍 Hỗ trợ ngôn ngữ
-
-## 📄 License
-
-Dự án này được phân phối dưới giấy phép MIT. Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+For issues and questions:
+1. Check the Troubleshooting section
+2. Review SETUP.md for detailed installation
+3. Check logs in console for error details
+4. Open an issue on GitHub
 
 ## 🙏 Acknowledgments
 
-- **Ollama**: Công cụ chạy mô hình AI local
-- **ChromaDB**: Vector database hiệu suất cao
-- **Streamlit**: Framework web app nhanh chóng
-- **DeepSeek**: Mô hình AI tối ưu cho tiếng Việt
-- **mxbai**: Mô hình embedding chất lượng cao
-
-
+- Ollama for local LLM runtime
+- ChromaDB for vector storage
+- Streamlit for web interface
+- OpenAI for API access
 
 ---
 
-<div align="center">
+**Made with ❤️ for Vietnamese legal document understanding**
 
-**⭐ Nếu dự án hữu ích, hãy cho chúng tôi một star! ⭐**
 
-Made with ❤️ for Vietnamese legal community
 
-</div>

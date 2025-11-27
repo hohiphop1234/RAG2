@@ -5,9 +5,7 @@ This module implements the core RAG (Retrieval-Augmented Generation) pipeline.
 It demonstrates how retrieval and generation work together to answer questions.
 """
 
-import logging
-from typing import List, Dict, Any, Optional
-from pathlib import Path
+from typing import List, Dict, Any
 
 from config import config
 from src.embeddings import EmbeddingGenerator
@@ -28,6 +26,10 @@ class RAGPipeline:
     4. How to handle different types of queries
     """
     
+    # Tunable constants
+    MAX_CONTEXT_LENGTH = 4000  # Leave room for question and system prompt
+    CHROMADB_DISTANCE_THRESHOLD = 200.0  # Lower distance = more similar
+
     def __init__(self, vector_store: VectorStore = None, 
                  embedding_generator: EmbeddingGenerator = None,
                  llm_client: LLMClient = None):
@@ -81,7 +83,8 @@ class RAGPipeline:
                     'confidence': 0.0,
                     'num_sources': 0,
                     'error': 'No relevant documents found'
-                }            # Step 3: Format context for the LLM
+                }
+            # Step 3: Format context for the LLM
             context = self._format_context(relevant_docs)
             
             # Step 4: Generate answer using LLM
@@ -127,34 +130,27 @@ class RAGPipeline:
         """
         # Perform similarity search
         search_results = self.vector_store.similarity_search(
-            query_embedding, 
+            query_embedding,
             top_k=config.TOP_K_RESULTS
         )
-        
-        # Filter by similarity threshold
-        relevant_docs = []
+
+        # Map scores to unified similarity and filter
+        relevant_docs: List[Dict[str, Any]] = []
         for result in search_results:
-            # For ChromaDB with Euclidean distance, lower distance means higher similarity
-            # For FAISS with cosine similarity, higher score means higher similarity
             if self.vector_store.db_type == "chromadb":
-                # Use distance directly - lower is better
-                # Convert to similarity: use inverse relation (lower distance = higher similarity)
-                distance = result['score']
-                # Use a reasonable distance threshold instead of similarity
-                # For normalized embeddings, distances around 1-2 are reasonable
-                distance_threshold = 200.0  # Allow distances up to 200 (quite liberal)
-                if distance <= distance_threshold:
-                    # Convert distance to a 0-1 similarity score for consistency
-                    similarity_score = max(0.0, 1.0 - (distance / distance_threshold))
-                    result['similarity_score'] = similarity_score
-                    relevant_docs.append(result)
+                similarity_score = self._distance_to_similarity(
+                    distance=result['score'],
+                    threshold=self.CHROMADB_DISTANCE_THRESHOLD
+                )
+                if similarity_score is None:
+                    continue
             else:
-                # FAISS cosine similarity - use threshold directly
-                similarity_score = result['score']
-                if similarity_score >= config.SIMILARITY_THRESHOLD:
-                    result['similarity_score'] = similarity_score
-                    relevant_docs.append(result)
-        
+                # Non-Chroma path is not expected in Chroma-only build
+                continue
+
+            result['similarity_score'] = similarity_score
+            relevant_docs.append(result)
+
         # Sort by similarity score (highest first)
         relevant_docs.sort(key=lambda x: x['similarity_score'], reverse=True)
         
@@ -176,26 +172,26 @@ class RAGPipeline:
         Returns:
             Formatted context string
         """
-        context_parts = []
-        
+        context_parts: List[str] = []
+
         for i, doc in enumerate(relevant_docs, 1):
-            # Add source information
-            source_info = f"[Nguồn {i}: {doc['metadata']['source_document']}"
-            if 'article' in doc['metadata']:
-                source_info += f", {doc['metadata']['article']}"
+            metadata = doc.get('metadata', {})
+            source_document = metadata.get('source_document') or metadata.get('document') or 'unknown'
+            source_info = f"[Nguồn {i}: {source_document}"
+            article = metadata.get('article')
+            if article:
+                source_info += f", {article}"
             source_info += "]"
-            
-            # Add document text
+
             context_parts.append(f"{source_info}\n{doc['text']}\n")
-        
+
         context = "\n".join(context_parts)
-        
+
         # Limit context length to avoid token limits
-        max_context_length = 4000  # Leave room for question and system prompt
-        if len(context) > max_context_length:
-            context = context[:max_context_length] + "..."
+        if len(context) > self.MAX_CONTEXT_LENGTH:
+            context = context[:self.MAX_CONTEXT_LENGTH] + "..."
             logger.warning("Context truncated due to length limit")
-        
+
         return context
     
     def _generate_answer(self, question: str, context: str) -> str:
@@ -292,10 +288,22 @@ Trả lời:"""
             
             if 'article' in doc['metadata']:
                 source['article'] = doc['metadata']['article']
+            # Include chunk_index when available for easier traceability
+            if 'chunk_index' in doc['metadata']:
+                source['chunk_index'] = doc['metadata']['chunk_index']
             
             sources.append(source)
         
         return sources
+
+    def _distance_to_similarity(self, distance: float, threshold: float) -> Any:
+        """
+        Convert a distance score (lower is better) to a 0-1 similarity.
+        Returns None if distance exceeds threshold.
+        """
+        if distance > threshold:
+            return None
+        return max(0.0, 1.0 - (distance / threshold))
     
     def get_pipeline_stats(self) -> Dict[str, Any]:
         """Get statistics about the RAG pipeline."""

@@ -10,11 +10,9 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from config import config
 from src.document_processor import DocumentProcessor
 from src.embeddings import EmbeddingGenerator
 from src.vector_store import VectorStore
-from src.rag_pipeline import RAGPipeline
 from logging_config import setup_logging
 
 def setup_rag_system():

@@ -5,9 +5,7 @@ This module handles the conversion of text to vector embeddings.
 It demonstrates the second step in RAG: creating numerical representations of text.
 """
 
-import logging
-import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from pathlib import Path
 import json
 import pickle
